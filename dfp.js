@@ -2,6 +2,7 @@ const fs = require('fs');
 
 function parseFile(indata, outdata, delimiter = ';') {
     if (!fs.existsSync(indata)) {
+        console.error(`Input file does not exist: ${indata}`);
         return -1;
     }
 
@@ -9,42 +10,18 @@ function parseFile(indata, outdata, delimiter = ';') {
         fs.unlinkSync(outdata);
     }
 
-    const data = fs.readFileSync(indata, { encoding: 'utf-8' });
+    const data = fs.readFileSync(indata, 'utf-8');
+    const processedLines = data.split(/\n/)
+        .slice(1) // Skip the header
+        .filter(line => line) // Remove empty lines
+        .map(line => {
+            const [review, sentiment] = line.split(delimiter).map(part => part.trim());
+            return (review && sentiment) ? `${sentiment}${delimiter}${review.slice(0, 20)}\n` : null;
+        })
+        .filter(Boolean); // Remove null entries
 
-    // Split the content into lines
-    const lines = data.split(/\n/);
-
-    // Initialize an array to store the processed lines
-    const processedLines = [];
-
-    // Loop through each line, skipping the first line (header)
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i];
-
-        if (line) {
-            // Split the line by the specified delimiter
-            const parts = line.split(delimiter);
-
-            // If the line has exactly two parts, process it further
-            if (parts.length === 2) {
-                // Trim both parts
-                let review = parts[0].trim();
-                let sentiment = parts[1].trim();
-
-                // Limit review to the first 20 characters
-                review = review.slice(0, 20);
-
-                const processedLine = `${sentiment}${delimiter}${review}\n`;
-                processedLines.push(processedLine);
-            }
-        }
-    }
-
-    // Write all processed lines to the output file
-    fs.writeFileSync(outdata, processedLines.join(''), { encoding: 'utf-8' });
-
-    // Output the count of processed records to console
-    console.log(processedLines.length);
+    fs.writeFileSync(outdata, processedLines.join(''), 'utf-8');
+    console.log(`Processed ${processedLines.length} records.`);
     return processedLines.length;
 }
 
